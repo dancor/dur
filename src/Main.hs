@@ -2,6 +2,7 @@
 -- to find large files
 
 -- TODO:
+-- - it's only showing dirs again..
 -- - distinguish dirs with trailing slash
 -- - get laziness to work right (introduced IOList for this, but not working)
 -- - check behavior on links
@@ -70,7 +71,6 @@ dur descendSize minSize path = do
   fs <- findir path
   if null fs then return Empty else do
     dus <- du fs
-    print path
     let l = filter ((>= minSize) . fst) . reverse $ sort dus
     sequenceList $ map (duRecurse descendSize minSize) l
 

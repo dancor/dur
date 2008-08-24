@@ -1,0 +1,11 @@
+name:           dur
+version:        0.1
+license:        GPL
+author:         danl@alum.mit.edu
+synopsis:       run the unix du utility recursively and find large dirs/files
+build-depends:  base, containers, process
+build-type:     Simple
+
+executable:     dur
+hs-source-dirs: src
+main-is:        Main.hs
