@@ -1,7 +1,14 @@
 -- run the unix du utility, recursing into large subdirectories, 
 -- to find large files
 
+-- TODO:
+-- - distinguish dirs with trailing slash
+-- - get laziness to work right (introduced IOList for this, but not working)
+-- - check behavior on links
+-- - try to support "show top N"-like functionality?
+
 import Control.Arrow
+import Control.Monad
 import Data.List
 import qualified Data.Map as M
 import System.Environment
@@ -61,10 +68,11 @@ sequenceList (x:xs) = do
 dur :: Int -> Int -> String -> IO (IOList Du)
 dur descendSize minSize path = do
   fs <- findir path
-  dus <- du fs
-  print dus
-  let l = filter ((>= minSize) . fst) . reverse $ sort dus
-  sequenceList $ map (duRecurse descendSize minSize) l
+  if null fs then return Empty else do
+    dus <- du fs
+    print path
+    let l = filter ((>= minSize) . fst) . reverse $ sort dus
+    sequenceList $ map (duRecurse descendSize minSize) l
 
 duShow :: Int -> Du -> String
 duShow n (Du (size, file) dus) = interlines $ [replicate n ' ' ++ show size ++ 
