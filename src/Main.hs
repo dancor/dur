@@ -17,10 +17,10 @@ import System.Console.GetOpt
 import System.Environment
 import System.IO
 import System.Process
+import qualified Data.IOList as IOL
 import qualified Data.Map as M
 
 data Du = Du (Int, String) [Du] deriving Show
-data IOList a = Empty | IOValue a (IO (IOList a))
 
 data Options = Options {
   optFileMinSize :: Int,
@@ -70,25 +70,17 @@ findir path = do
 duRecurse :: Int -> Int -> (Int, String) -> IO Du
 duRecurse descendSize minSize k@(size, file) = do
   dus <- if size >= descendSize
-    then unIOList =<< dur descendSize minSize file
+    then IOL.toList =<< dur descendSize minSize file
     else return []
   return $ Du k dus
 
-unIOList :: IOList a -> IO [a]
-unIOList Empty = return []
-unIOList (IOValue x ysIO) = liftM (x:) (unIOList =<< ysIO)
-
-sequenceList :: [IO a] -> IO (IOList a)
-sequenceList [] = return Empty
-sequenceList (x:xs) = (flip IOValue $ sequenceList xs) <$> x
-
-dur :: Int -> Int -> String -> IO (IOList Du)
+dur :: Int -> Int -> String -> IO (IOL.IOList Du)
 dur descendSize minSize path = do
   fs <- findir path
-  if null fs then return Empty else do
+  if null fs then return IOL.Empty else do
     dus <- du fs
     let l = filter ((>= minSize) . fst) . reverse $ sort dus
-    sequenceList $ map (duRecurse descendSize minSize) l
+    IOL.sequence $ map (duRecurse descendSize minSize) l
 
 duShow :: Int -> Du -> String
 duShow n (Du (size, file) dus) = interlines $ [replicate n ' ' ++ show size ++
@@ -100,5 +92,5 @@ main = do
   flip mapM_ (if null args then ["."] else args) $ \ path -> do
     dus <- dur (optDirMinSize opts) (optFileMinSize opts) path
     -- FIXME: find a way to print lines as they are found, not all at end
-    dus' <- unIOList dus
+    dus' <- IOL.toList dus
     putStrLn . interlines $ map (duShow 0) dus'
