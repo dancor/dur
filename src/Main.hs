@@ -11,20 +11,24 @@
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
+import Control.Monad.Maybe
+import Data.Function
+import Data.Graph
 import Data.List
+import Data.Tree
 import FUtil
 import System.Console.GetOpt
+import System.Directory
 import System.Environment
+import System.FilePath
 import System.IO
 import System.Process
 import qualified Data.IOList as IOL
 import qualified Data.Map as M
 
-data Du = Du (Int, String) [Du] deriving Show
-
 data Options = Options {
-  optFileMinSize :: Int,
-  optDirMinSize :: Int
+  optFileMinSize :: Integer,
+  optDirMinSize :: Integer
 }
 
 -- in KB
@@ -44,53 +48,73 @@ options = [
     "Only show/descend into directories >= this size"
   ]
 
-du :: [String] -> IO [(Int, String)]
-du files = do
-  let duLineProc s = first read . second tail . break (== '\t') $ s
+data DuNodeType = File | Dir Bool  -- had dir been explored
+  deriving (Show, Eq)
+
+data DuNode = DuNode {
+  duSize :: Integer,  -- in 1K blocks
+  duName :: String,
+  duType :: DuNodeType
+  }
+  deriving (Show, Eq)
+
+duDir :: Options -> String -> IO [DuNode]
+duDir opts path = do
+  fs <- filter (\ x -> x /= "." && x /= "..") <$> getDirectoryContents path
+  -- TODO: .du.out caching?
   (_pIn, pOut, pErr, pId) <-
-    runInteractiveProcess "du" ("-s":files) (Just ".") Nothing
+    runInteractiveProcess "du" ("-s":fs) (Just path) Nothing
   waitForProcess pId
   -- FIXME: handle err
-  c <- hGetContents pOut
-  let ls = lines c
-  return . map duLineProc $ ls
+  sizesAndFs <- reverse . sortBy (compare `on` fst) .
+    filter ((>= optFileMinSize opts) . fst) . map ((read *** tail) .
+    break (== '\t')) . lines <$> hGetContents pOut
+  flip mapM sizesAndFs $ \ (s, f) -> DuNode s f <$>
+    ifM (doesDirectoryExist $ path </> f) (return $ Dir False) (return File)
 
-killDotSlash ('.':'/':rest) = rest
-killDotSlash rest = rest
+drawTreeShort :: Tree String -> String
+drawTreeShort = unlines . map head . splitN 2 . lines . drawTree
 
-findir :: String -> IO [String]
-findir path = do
-  -- FIXME: handle newlines in file names
-  (_pIn, pOut, pErr, pId) <- runInteractiveProcess "find"
-    [path, "-mindepth", "1", "-maxdepth", "1", "-type", "d"] (Just ".") Nothing
-  -- FIXME: handle err
-  c <- hGetContents pOut
-  return $ lines c
+duNodePretty :: DuNode -> [Char]
+duNodePretty (DuNode s n t) =
+  show s ++ "\t" ++ n ++ if t == File || n == "/" then "" else "/"
 
-duRecurse :: Int -> Int -> (Int, String) -> IO Du
-duRecurse descendSize minSize k@(size, file) = do
-  dus <- if size >= descendSize
-    then IOL.toList =<< dur descendSize minSize file
-    else return []
-  return $ Du k dus
+expandTree :: Options -> String -> Tree DuNode -> MaybeT IO (Tree DuNode)
+expandTree opts path (Node (DuNode s n t) forest) = do
+  when (s < optDirMinSize opts) $ fail ""
+  case t of
+    File -> fail ""
+    Dir False ->
+      io $ treeify (DuNode s n $ Dir True) <$> duDir opts (path </> n)
+    Dir True -> Node (DuNode s n t) <$> expandForest opts (path </> n) forest
 
-dur :: Int -> Int -> String -> IO (IOL.IOList Du)
-dur descendSize minSize path = do
-  fs <- findir path
-  if null fs then return IOL.Empty else do
-    dus <- du fs
-    let l = filter ((>= minSize) . fst) . reverse $ sort dus
-    IOL.sequence $ map (duRecurse descendSize minSize) l
+expandForest :: Options -> String -> [Tree DuNode] -> MaybeT IO [Tree DuNode]
+expandForest _ _ [] = fail ""
+expandForest opts path (t:rest) = do
+  tNewMb <- io . runMaybeT $ expandTree opts path t
+  maybe ((t:) <$> expandForest opts path rest) (return . (:rest)) tNewMb
 
-duShow :: Int -> Du -> String
-duShow n (Du (size, file) dus) = interlines $ [replicate n ' ' ++ show size ++
-  "\t" ++ killDotSlash file] ++ map (duShow (n + 1)) dus
+expandLoop :: Options -> String -> Tree DuNode -> IO ()
+expandLoop opts path tree = do
+  putStrLn . drawTreeShort . fmap duNodePretty $ tree
+  hFlush stdout
+  tMb <- runMaybeT $ expandTree opts path tree
+  case tMb of
+    Just t -> expandLoop opts path t
+    Nothing -> return ()
+
+treeify :: a -> [a] -> Tree a
+treeify a = Node a . map (flip Node [])
 
 main :: IO ()
 main = do
   (opts, args) <- doArgs "usage" defOpts options
-  flip mapM_ (if null args then ["."] else args) $ \ path -> do
-    dus <- dur (optDirMinSize opts) (optFileMinSize opts) path
-    -- FIXME: find a way to print lines as they are found, not all at end
-    dus' <- IOL.toList dus
-    putStrLn . interlines $ map (duShow 0) dus'
+  let
+    d = case args of
+      [] -> "."
+      [argD] -> argD
+      _ -> error "usage"
+  duRes <- duDir opts d
+  expandLoop opts d $
+    treeify (DuNode (sum $ map duSize duRes) d $ Dir True) duRes
+

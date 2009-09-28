@@ -3,7 +3,7 @@ version:        0.1
 license:        GPL
 author:         danl@alum.mit.edu
 synopsis:       run the unix du utility recursively and find large dirs/files
-build-depends:  base, containers, process, FUtil
+build-depends:  FUtil, MaybeT, base, containers, directory, filepath, process
 build-type:     Simple
 
 executable:     dur

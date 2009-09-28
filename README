@@ -1,0 +1,13 @@
+todo
+- kill du process on ^C (haskell sucks)
+- caching of some kind
+  - re-reading incremental file?
+  - .du.out files (lame?)
+- kill extra commandline arg
+
+initial notes
+- we are constructing a tree of:
+  - files
+  - explored dirs
+  - dirs to explore
+  - dirs to not explore
