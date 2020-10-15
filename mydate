@@ -1,0 +1,17 @@
+#!/bin/bash
+S="$1"
+F='%Y-%m-%d_%H.%M.%S'
+if [ "$S" == 's' ]
+then
+  shift
+  F='%Y-%m-%d'
+fi
+if [ "$1" == '-u' ]
+then
+  echo -n 'U'
+fi
+echo -n "$(date +"$F" "$@")"
+if [ "$1" == '-u' ]
+then
+  date '+%:::z%a'
+fi

@@ -1,16 +1,8 @@
-Usage: Note that du usually displays in KiB units.
-sudo du / | dur | sort -nr > out.txt
+Install (run from this directory to install dur to existing ~/bin in $PATH):
+~ cabal install -pO
+~ ln -s $(pwd)/dur $(pwd)/mydate ~/bin
 
-Todo:
-- kill du process on ^C (haskell sucks)
-- caching of some kind
-  - re-reading incremental file?
-  - .du.out files (lame?)
-- kill extra commandline arg
+Usage: dur
+- Sorts all filenames >= 100MB metric to ~/big-files-(date)-.txt
 
-Initial notes:
-- we are constructing a tree of:
-  - files
-  - explored dirs
-  - dirs to explore
-  - dirs to not explore
+Todo: kill du process on ^C (haskell lamely leaves it running?)

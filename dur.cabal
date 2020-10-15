@@ -6,6 +6,6 @@ synopsis:       run the unix du utility recursively and find large dirs/files
 build-depends:  base, bytestring, bytestring-nums
 build-type:     Simple
 
-executable:     dur
+executable:     helper-for-dur
 hs-source-dirs: src
 main-is:        Main.hs

@@ -1,0 +1,2 @@
+#!/bin/sh
+sudo du --block-size=MB / | helper-for-dur | sort -nr > ~/big-files-$(mydate).txt
