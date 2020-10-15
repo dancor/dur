@@ -10,5 +10,5 @@ tab     = fromIntegral (ord '\t')
 
 main :: IO ()
 main = B.interact (B.concat . map (<> B.singleton newline) . 
-    filter ((>= 100000) . strict_unsigned . fst . B.break (== tab)) .
+    filter ((>= 100) . strict_unsigned . fst . B.break (== tab)) .
     B.split newline)
