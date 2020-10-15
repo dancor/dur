@@ -1,12 +1,14 @@
 import Control.Applicative
 import Data.Char
-import qualified Data.ByteString as BS
+import Data.Word
+import qualified Data.ByteString as B
 import Data.ByteString.Nums.Careless.Int
 
-fI = fromIntegral
-nl = fI $ ord '\n'
-tb = fI $ ord '\t'
+newline, tab :: Word8
+newline = fromIntegral (ord '\n')
+tab     = fromIntegral (ord '\t')
 
-main = BS.interact (BS.concat . map (`BS.append` BS.singleton nl) . 
-  filter ((>= 100000) . strict_unsigned . fst . BS.breakByte tb) .
-  BS.split nl)
+main :: IO ()
+main = B.interact (B.concat . map (<> B.singleton newline) . 
+    filter ((>= 100000) . strict_unsigned . fst . B.break (== tab)) .
+    B.split newline)

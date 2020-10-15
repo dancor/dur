@@ -1,11 +1,14 @@
-todo
+Usage: Note that du usually displays in KiB units.
+sudo du / | dur | sort -nr > out.txt
+
+Todo:
 - kill du process on ^C (haskell sucks)
 - caching of some kind
   - re-reading incremental file?
   - .du.out files (lame?)
 - kill extra commandline arg
 
-initial notes
+Initial notes:
 - we are constructing a tree of:
   - files
   - explored dirs
